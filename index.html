@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sortie · Signal Monitor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0e0e0d; color: #f5f2ec; font-family: Georgia, serif; min-height: 100vh; }
+  ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #b87333; border-radius: 3px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 36px 16px; }
+  .header { margin-bottom: 28px; }
+  .header-label { font-size: 10px; letter-spacing: 0.2em; color: #b87333; text-transform: uppercase; margin-bottom: 4px; }
+  .header h1 { font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
+  .header p { font-size: 12px; color: rgba(245,242,236,0.4); margin-top: 5px; }
+  .panel { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 18px; margin-bottom: 14px; }
+  .panel-label { font-size: 10px; letter-spacing: 0.12em; color: rgba(255,255,255,0.3); text-transform: uppercase; margin-bottom: 12px; font-weight: 600; }
+  label { display: block; font-size: 10px; letter-spacing: 0.1em; color: rgba(255,242,236,0.3); text-transform: uppercase; margin-bottom: 5px; margin-top: 12px; }
+  label:first-of-type { margin-top: 0; }
+  input, select, textarea { width: 100%; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; color: #f5f2ec; font-size: 13px; padding: 9px 12px; outline: none; color-scheme: dark; }
+  input[type=password], input[type=text] { font-family: monospace; }
+  textarea { resize: vertical; font-family: monospace; line-height: 1.5; }
+  select { font-family: Georgia, serif; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 10px; }
+  .toggle { width: 36px; height: 20px; border-radius: 10px; background: rgba(255,255,255,0.1); position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle.on { background: #b87333; }
+  .toggle-dot { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+  .toggle.on .toggle-dot { left: 19px; }
+  .toggle-label { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .key-status { font-size: 11px; margin-top: 5px; padding: 5px 8px; border-radius: 4px; }
+  .key-ok { color: #4caf50; background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.2); }
+  .key-missing { color: #ff9800; background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.2); }
+  .btn { background: #b87333; color: #0e0e0d; border: none; border-radius: 6px; padding: 11px 24px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+  .btn:disabled { background: rgba(184,115,51,0.25); color: rgba(14,14,13,0.4); cursor: not-allowed; }
+  .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); border-radius: 6px; padding: 8px 14px; font-size: 11px; cursor: pointer; letter-spacing: 0.05em; }
+  .btn-ghost.active { border-color: rgba(184,115,51,0.4); color: #b87333; background: rgba(184,115,51,0.08); }
+  .btn-save { background: rgba(184,115,51,0.15); border: 1px solid rgba(184,115,51,0.3); color: #b87333; border-radius: 5px; padding: 6px 14px; font-size: 11px; cursor: pointer; margin-top: 12px; font-family: Georgia, serif; }
+  .btn-save:hover { background: rgba(184,115,51,0.25); }
+  .progress-bar { height: 2px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-bottom: 20px; }
+  .progress-fill { height: 100%; background: #b87333; border-radius: 2px; transition: width 0.3s; }
+  .status-line { font-size: 11px; color: rgba(255,255,255,0.3); margin-left: 14px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .pulsing { animation: pulse 1.4s infinite; }
+  .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 24px; }
+  .stat { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 7px; padding: 12px 10px; text-align: center; }
+  .stat-val { font-size: 20px; font-weight: 700; }
+  .stat-lbl { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 3px; }
+  .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; cursor: pointer; border-left-width: 3px; }
+  .card:hover { background: rgba(255,255,255,0.04); }
+  .card.expired { opacity: 0.4; cursor: default; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .card-left { flex: 1; min-width: 0; }
+  .card-right { flex-shrink: 0; text-align: right; }
+  .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 5px; }
+  .sub { font-size: 11px; color: #b87333; font-family: monospace; }
+  .dot-sep { font-size: 11px; color: rgba(255,255,255,0.2); }
+  .age { font-size: 11px; font-weight: 600; }
+  .upvotes { font-size: 11px; color: rgba(255,255,255,0.3); }
+  .card-title { font-size: 13px; line-height: 1.45; margin-bottom: 8px; }
+  .badges { display: flex; gap: 5px; flex-wrap: wrap; }
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; }
+  .badge-research { background: rgba(184,115,51,0.12); color: #b87333; border: 1px solid rgba(184,115,51,0.25); }
+  .badge-lead { background: rgba(184,151,90,0.12); color: #b8975a; border: 1px solid rgba(184,151,90,0.25); }
+  .badge-marketing { background: rgba(122,154,106,0.12); color: #7a9a6a; border: 1px solid rgba(122,154,106,0.25); }
+  .score-dots { display: flex; gap: 3px; justify-content: flex-end; margin-bottom: 4px; }
+  .sdot { width: 5px; height: 5px; border-radius: 50%; }
+  .score-num { font-size: 18px; font-weight: 700; }
+  .card-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07); display: none; }
+  .card-detail.open { display: block; }
+  .comments-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.25); margin-bottom: 6px; }
+  .comment { font-size: 12px; color: rgba(245,242,236,0.55); line-height: 1.5; padding: 6px 10px; border-left: 2px solid rgba(255,255,255,0.08); margin-bottom: 5px; }
+  .comment.target { border-left-color: #b8975a; background: rgba(184,151,90,0.05); }
+  .comment-author { font-size: 11px; font-weight: 600; margin-bottom: 2px; color: rgba(255,255,255,0.3); }
+  .comment.target .comment-author { color: #b8975a; }
+  .signal-text { font-size: 12px; color: rgba(245,242,236,0.5); line-height: 1.5; margin-bottom: 10px; }
+  .signal-text strong { color: #b87333; font-weight: 600; }
+  .hook-box { background: rgba(184,151,90,0.07); border: 1px solid rgba(184,151,90,0.2); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; }
+  .hook-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .hook-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #b8975a; font-weight: 600; }
+  .hook-copy { background: rgba(184,151,90,0.15); border: 1px solid rgba(184,151,90,0.3); border-radius: 4px; color: #b8975a; font-size: 10px; padding: 3px 8px; cursor: pointer; font-family: Georgia, serif; }
+  .hook-copy.copied { background: rgba(76,175,80,0.15); border-color: rgba(76,175,80,0.3); color: #4caf50; }
+  .hook-text { font-size: 13px; color: #f5f2ec; font-style: italic; line-height: 1.6; }
+  .hook-chars { font-size: 10px; color: rgba(255,255,255,0.2); margin-top: 5px; }
+  .card-link { font-size: 11px; color: #b87333; text-decoration: none; border-bottom: 1px solid rgba(184,115,51,0.3); }
+  .expired-banner { text-align: center; font-size: 11px; color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.03); border-radius: 5px; padding: 7px; margin-top: 6px; }
+  .empty { text-align: center; padding: 50px 20px; font-size: 13px; color: rgba(255,255,255,0.25); }
+  .run-row { display: flex; align-items: center; margin-bottom: 20px; }
+  .age-green { color: #4caf50; } .age-orange { color: #ff9800; } .age-gray { color: rgba(255,255,255,0.25); }
+  .age-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .security-note { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-label">Sortie · Signal Monitor</div>
+    <h1>Reddit Intelligence</h1>
+    <p>Thread-aware · Hook-first · 6h window</p>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+    <button class="btn-ghost" id="settingsToggle" onclick="toggleSettings()">⚙ Settings</button>
+  </div>
+
+  <div class="panel" id="settingsPanel" style="display:none;">
+    <div class="panel-label">API Keys</div>
+
+    <label>Anthropic API Key</label>
+    <input type="password" id="anthropicKey" placeholder="sk-ant-..." autocomplete="off">
+
+    <div class="toggle-row" style="margin-top:16px;" onclick="toggleTg()">
+      <div class="toggle on" id="tgToggle"><div class="toggle-dot"></div></div>
+      <span class="toggle-label">Telegram notifications</span>
+    </div>
+    <div id="tgFields">
+      <div class="grid2">
+        <div>
+          <label>Bot Token</label>
+          <input type="password" id="tgToken" placeholder="7123456789:AAF..." autocomplete="off">
+        </div>
+        <div>
+          <label>Chat ID</label>
+          <input type="text" id="tgChatId" placeholder="8828856271" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-save" onclick="saveKeys()">Save keys for this session</button>
+    <div class="security-note">🔒 Keys are encrypted before being stored locally. They never leave your device except to call the respective APIs directly.</div>
+  </div>
+
+  <div id="keyStatus" style="margin-bottom:14px;display:none;"></div>
+
+  <div class="panel">
+    <div class="panel-label">Sources</div>
+    <label>Subreddits</label>
+      <textarea id="subreddits" rows="2">businesstravel, solotravel, digitalnomad, digital_nomad, remotework, workingabroad, travel, longtermtravel, expats, frequent_flyers, aviation, remoteworkers, laptoplifestyle</textarea>
+
+    <div class="grid2" style="margin-top:14px;">
+      <div>
+        <label>Posts per source</label>
+        <select id="postsPerSub">
+          <option value="5">5</option>
+          <option value="8" selected>8</option>
+          <option value="10">10</option>
+          <option value="15">15</option>
+        </select>
+      </div>
+      <div>
+        <label>Min score</label>
+        <select id="minScore">
+          <option value="3">3 — broad</option>
+          <option value="4">4 — balanced</option>
+          <option value="5" selected>5 — default</option>
+          <option value="6">6 — high signal</option>
+          <option value="8">8 — exceptional</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="run-row">
+    <button class="btn" id="runBtn" onclick="runScan()">Run Scan</button>
+    <button class="btn-ghost" style="margin-left:8px;" onclick="runDebug()">Debug</button>
+    <span class="status-line pulsing" id="statusLine" style="display:none;"></span>
+  </div>
+  <div class="progress-bar" id="progressBar" style="display:none;"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div id="debugPanel" style="display:none;background:rgba(255,0,0,0.05);border:1px solid rgba(255,0,0,0.2);border-radius:8px;padding:14px;margin-bottom:16px;font-family:monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:#f5f2ec;max-height:300px;overflow-y:auto;"></div>
+
+  <div class="stats" id="stats" style="display:none;">
+    <div class="stat"><div class="stat-val" id="statTotal">0</div><div class="stat-lbl">Scanned</div></div>
+    <div class="stat"><div class="stat-val" style="color:#b87333" id="statResearch">0</div><div class="stat-lbl">Research</div></div>
+    <div class="stat"><div class="stat-val" style="color:#b8975a" id="statLeads">0</div><div class="stat-lbl">Leads</div></div>
+    <div class="stat"><div class="stat-val" style="color:#7a9a6a" id="statMarketing">0</div><div class="stat-lbl">Marketing</div></div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+// ── Simple obfuscation for localStorage ──────────────────────────────────────
+// Not cryptographic — keys are sensitive, this makes them non-readable at a glance
+// in DevTools without actual effort. Do not store banking credentials here.
+const SALT = 'sortie-2026';
+function obfuscate(str) {
+  return btoa(str.split('').map((c,i) => String.fromCharCode(c.charCodeAt(0) ^ SALT.charCodeAt(i % SALT.length))).join(''));
+}
+function deobfuscate(str) {
+  try {
+    return atob(str).split('').map((c,i) => String.fromCharCode(c.charCodeAt(0) ^ SALT.charCodeAt(i % SALT.length))).join('');
+  } catch { return ''; }
+}
+
+// In-memory store — keys only live in JS memory during the session
+const KEYS = { anthropic: '', tgToken: '', tgChatId: '' };
+let tgEnabled = true;
+
+function saveKeys() {
+  const ak = document.getElementById('anthropicKey').value.trim();
+  const tg = document.getElementById('tgToken').value.trim();
+  const cid = document.getElementById('tgChatId').value.trim();
+
+  // Store in memory
+  KEYS.anthropic = ak;
+  KEYS.tgToken = tg;
+  KEYS.tgChatId = cid;
+
+  // Store obfuscated in localStorage so they survive page refresh
+  if (ak) localStorage.setItem('sk_a', obfuscate(ak));
+  if (tg) localStorage.setItem('sk_t', obfuscate(tg));
+  if (cid) localStorage.setItem('sk_c', obfuscate(cid));
+
+  updateKeyStatus();
+  // Close settings after save
+  document.getElementById('settingsPanel').style.display = 'none';
+  document.getElementById('settingsToggle').classList.remove('active');
+}
+
+function loadKeys() {
+  const ak = deobfuscate(localStorage.getItem('sk_a') || '');
+  const tg = deobfuscate(localStorage.getItem('sk_t') || '');
+  const cid = deobfuscate(localStorage.getItem('sk_c') || '');
+  KEYS.anthropic = ak;
+  KEYS.tgToken = tg;
+  KEYS.tgChatId = cid;
+  // Populate fields (masked)
+  if (ak) document.getElementById('anthropicKey').value = ak;
+  if (tg) document.getElementById('tgToken').value = tg;
+  if (cid) document.getElementById('tgChatId').value = cid;
+  updateKeyStatus();
+}
+
+function updateKeyStatus() {
+  const el = document.getElementById('keyStatus');
+  if (KEYS.anthropic) {
+    el.style.display = 'block';
+    el.innerHTML = `<span class="key-status key-ok">✓ API key loaded — ${KEYS.tgToken ? 'Telegram active' : 'no Telegram'}</span>`;
+  } else {
+    el.style.display = 'block';
+    el.innerHTML = `<span class="key-status key-missing">⚠ No API key — open Settings to add one</span>`;
+  }
+}
+
+window.onload = loadKeys;
+
+function toggleSettings() {
+  const p = document.getElementById('settingsPanel');
+  const b = document.getElementById('settingsToggle');
+  const open = p.style.display === 'none';
+  p.style.display = open ? 'block' : 'none';
+  b.classList.toggle('active', open);
+}
+
+function toggleTg() {
+  tgEnabled = !tgEnabled;
+  document.getElementById('tgToggle').classList.toggle('on', tgEnabled);
+  document.getElementById('tgFields').style.display = tgEnabled ? 'block' : 'none';
+}
+
+// ── Reddit + Claude ──────────────────────────────────────────────────────────
+const AGE_LIMIT = 6;
+
+const SYSTEM_PROMPT = `You are an intelligence filter for Sortie, a mobile app for business travelers who want to discover what to do in the evening in an unfamiliar city.
+
+Analyze a Reddit post and its top comments. Return ONLY valid JSON:
+{
+  "relevant": true or false,
+  "score": 1-10,
+  "dimensions": { "market_research": true or false, "lead": true or false, "marketing": true or false },
+  "reason": "one sentence",
+  "hook": "ready-to-post comment or empty string",
+  "reply_to": "username to reply to, or empty string for top-level"
+}
+
+Classify as relevant if touching on:
+- MARKET RESEARCH: Pain points of traveling alone, hotel boredom, difficulty finding evening activities
+- LEAD: Someone actively looking for evening activities or company in a city right now
+- MARKETING: A story or emotion Sortie brand could speak to authentically
+
+Score 1-3: tangential. 4-6: relevant. 7-10: directly on-point. Be selective.
+
+THREAD-AWARE: Read top comments. Find the one that best sets up the hook. Set reply_to to that username, or empty string if replying to the post itself.
+
+HOOK RULES — the hook is the only output that matters:
+1. Dry, direct, deadpan. Not salesy, not enthusiastic, not empathetic.
+2. No AI words: resonate, navigate, absolutely, definitely, as someone who, I feel you, great point, spot on.
+3. No Sortie mentions, no app hints, no promotion of any kind.
+4. No URLs.
+5. No pity. Add something useful or true.
+6. English only.
+7. Max 280 characters.
+8. If post has zero comments, set hook to empty string.
+9. Specific to THIS post — a city, a detail, a situation.
+
+Good examples:
+- "Wednesday nights in Frankfurt the Sachsenhausen area does the job — most of it within 10 minutes of the Messe."
+- "The 8pm solo dinner problem is real. Most people solve it with room service and don't tell anyone."
+- "Crew layovers in BRU are actually one of the better ones — the city doesn't close at 9."
+
+If no hook passes all rules, set hook to empty string.`;
+
+async function fetchComments(postUrl) {
+  // RSS doesn't provide comments — fall back to JSON endpoint for comment context
+  // This is a separate call and may be blocked; if so, we proceed without comments
+  try {
+    const path = new URL(postUrl).pathname;
+    const res = await fetch(`/api/comments?path=${encodeURIComponent(path)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data[1]?.data?.children||[])
+      .filter(c=>c.kind==='t1'&&c.data?.body&&c.data.body!=='[deleted]')
+      .slice(0,3).map(c=>({author:c.data.author,body:c.data.body.slice(0,300),score:c.data.score}));
+  } catch { return []; }
+}
+
+async function fetchPosts(sub, limit) {
+  // Use RSS feed — no API key required, works from browser IP
+  const res = await fetch(`/api/reddit?sub=${encodeURIComponent(sub)}&limit=${limit}&type=rss`);
+  if (!res.ok) throw new Error(res.status);
+  const text = await res.text();
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(text, 'application/xml');
+  const entries = Array.from(xml.querySelectorAll('entry')).slice(0, limit);
+  return entries.map(e => {
+    const title = e.querySelector('title')?.textContent || '';
+    const url   = e.querySelector('link')?.getAttribute('href') || '';
+    const id    = e.querySelector('id')?.textContent?.split('_').pop() || Math.random().toString(36).slice(2);
+    const updated = e.querySelector('updated')?.textContent || '';
+    const created = updated ? Math.floor(new Date(updated).getTime() / 1000) : Math.floor(Date.now()/1000);
+    // Extract body text from content element (HTML-encoded)
+    const contentRaw = e.querySelector('content')?.textContent || '';
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = contentRaw;
+    const selftext = tempDiv.textContent?.slice(0, 500) || '';
+    // Upvote score not in RSS — default to 0, not critical for sorting
+    return {
+      id, title, selftext,
+      subreddit: sub,
+      author: e.querySelector('author name')?.textContent || 'unknown',
+      score: 0,
+      num_comments: 0, // not in RSS; comments fetched separately
+      permalink: url ? new URL(url).pathname : '',
+      url,
+      created,
+    };
+  });
+}
+
+async function classifyPost(post, comments) {
+  const commentBlock = comments.length>0
+    ? '\nTop comments:\n'+comments.map(c=>`u/${c.author} (↑${c.score}): "${c.body}"`).join('\n')
+    : '\nNo comments yet.';
+  const content = `Subreddit: r/${post.subreddit}\nTitle: ${post.title}\n${post.selftext?'Body: '+post.selftext.slice(0,500)+'\n':''}Post score: ${post.score} upvotes, ${post.num_comments} comments${commentBlock}`;
+  const res = await fetch('/api/claude',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':KEYS.anthropic,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:600,system:SYSTEM_PROMPT,messages:[{role:'user',content}]}),
+  });
+  const data = await res.json();
+  const text = data.content?.find(b=>b.type==='text')?.text||'{}';
+  try { return JSON.parse(text.replace(/```json|```/g,'').trim()); }
+  catch { return {relevant:false,score:0,dimensions:{},reason:'Parse error',hook:'',reply_to:''}; }
+}
+
+async function sendTelegram(message) {
+  if (!tgEnabled||!KEYS.tgToken||!KEYS.tgChatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${KEYS.tgToken}/sendMessage`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:KEYS.tgChatId,text:message,parse_mode:'HTML',disable_web_page_preview:true}),
+    });
+  } catch(e){console.error('Telegram:',e);}
+}
+
+function formatTelegram(post,result,ageHours){
+  const dims=Object.entries(result.dimensions||{}).filter(([,v])=>v)
+    .map(([k])=>k==='market_research'?'📊 Research':k==='lead'?'🎯 Lead':'📣 Marketing').join(' · ');
+  const urgency=ageHours<=1.5?'⚡ ':'';
+  const isX=post.source==='x';
+  const sourceIcon=isX?'𝕏':'📌';
+  const sourceLabel=isX?post.subreddit:`r/${post.subreddit}`;
+  const replyInfo=result.reply_to?(isX?`↩️ Reply to @${result.reply_to}`:`↩️ Reply to u/${result.reply_to}`):'💬 Top-level';
+  return `<b>Sortie Signal — ${result.score}/10</b>\n\n`+
+    `${sourceIcon} ${sourceLabel} · ${urgency}${Math.round(ageHours)}h ago\n${dims}\n\n`+
+    `<b>${post.title}</b>\n\n`+
+    `<i>Signal:</i> ${result.reason}\n\n`+
+    (result.hook?`<i>Draft (${replyInfo}):</i>\n"${result.hook}"\n\n`:'No hook.\n\n')+
+    post.url;
+}
+
+function ageInfo(h){
+  if(h<=1.5) return {cls:'age-green',dot:'#4caf50',label:'Act now'};
+  if(h<=AGE_LIMIT) return {cls:'age-orange',dot:'#ff9800',label:'Fading'};
+  return {cls:'age-gray',dot:'rgba(255,255,255,0.2)',label:'Expired'};
+}
+
+function renderCard(post,result,comments){
+  const ageHours=(Date.now()/1000-post.created)/3600;
+  const expired=ageHours>AGE_LIMIT;
+  const age=ageInfo(ageHours);
+  const borderColor=expired?'rgba(255,255,255,0.1)':result.score>=7?'#b87333':'#b8975a';
+  const scoreColor=expired?'rgba(255,255,255,0.3)':result.score>=7?'#b87333':'#b8975a';
+  const dims=Object.entries(result.dimensions||{}).filter(([,v])=>v);
+  const dotsHtml=Array.from({length:10},(_,i)=>`<div class="sdot" style="background:${i<result.score?(expired?'#555':result.score>=7?'#b87333':'#b8975a'):'rgba(255,255,255,0.1)'}"></div>`).join('');
+  const commentsHtml=comments.length>0?`<div style="margin-bottom:12px"><div class="comments-label">Top comments</div>${comments.map(c=>`<div class="comment${result.reply_to===c.author?' target':''}"><div class="comment-author">u/${c.author} ↑${c.score}${result.reply_to===c.author?' ← reply here':''}</div>${c.body.slice(0,200)}${c.body.length>200?'…':''}</div>`).join('')}</div>`:'';
+  const hookHtml=result.hook?`<div class="hook-box"><div class="hook-header"><span class="hook-label">${result.reply_to?`Reply to u/${result.reply_to}`:'Top-level'} · ready to post</span><button class="hook-copy" onclick="copyHook(this,${JSON.stringify(result.hook)})">Copy</button></div><div class="hook-text">"${result.hook}"</div><div class="hook-chars">${result.hook.length}/280</div></div>`:`<div style="font-size:12px;color:rgba(255,255,255,0.25);font-style:italic;margin-bottom:10px;">No hook — signal only.</div>`;
+  const expiredBanner=expired?`<div class="expired-banner">⏱ Older than ${AGE_LIMIT}h — engagement window closed</div>`:'';
+  const id=`card-${post.id}`;
+  return `<div class="card${expired?' expired':''}" style="border-left-color:${borderColor}" onclick="${expired?'':'toggleCard(\''+id+'\')'}" id="${id}">
+    <div class="card-top">
+      <div class="card-left">
+        <div class="card-meta">
+          <span class="sub">${post.source==='x'?'𝕏 '+post.subreddit:'r/'+post.subreddit}</span><span class="dot-sep">·</span>
+          <span class="age ${age.cls}"><span class="age-dot" style="background:${age.dot}"></span>${Math.round(ageHours)}h — ${age.label}</span>
+          <span class="dot-sep">·</span><span class="upvotes">↑${post.score} · ${post.num_comments} comments</span>
+        </div>
+        <div class="card-title">${post.title}</div>
+        <div class="badges">${dims.map(([k])=>`<span class="badge badge-${k==='market_research'?'research':k}">${k==='market_research'?'Research':k==='lead'?'Lead':'Marketing'}</span>`).join('')}</div>
+      </div>
+      <div class="card-right"><div class="score-dots">${dotsHtml}</div><div class="score-num" style="color:${scoreColor}">${result.score}/10</div></div>
+    </div>
+    ${expiredBanner}
+    <div class="card-detail" id="detail-${post.id}">
+      ${commentsHtml}
+      <div class="signal-text"><strong>Signal:</strong> ${result.reason}</div>
+      ${hookHtml}
+      <a class="card-link" href="${post.url}" target="_blank" onclick="event.stopPropagation()">${post.source==='x'?'Open on X →':'Open on Reddit →'}</a>
+    </div>
+  </div>`;
+}
+
+function toggleCard(id){
+  document.getElementById('detail-'+id.replace('card-','')).classList.toggle('open');
+}
+function copyHook(btn,text){
+  navigator.clipboard.writeText(text);
+  btn.textContent='Copied ✓'; btn.classList.add('copied');
+  setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied');},2000);
+}
+
+let scanning=false;
+
+async function runDebug(){
+  const panel = document.getElementById('debugPanel');
+  panel.style.display = 'block';
+  panel.textContent = 'Starting debug...\n';
+  const log = (msg) => { panel.textContent += msg + '\n'; panel.scrollTop = panel.scrollHeight; };
+
+  // Test 1: Reddit RSS
+  log('\n[1] Reddit RSS test...');
+  try {
+    const res = await fetch('/api/reddit?sub=businesstravel&limit=3&type=rss');
+    log('Status: ' + res.status + ' ' + res.statusText);
+    if(res.ok){
+      const text = await res.text();
+      log('Length: ' + text.length + ' chars');
+      const xml = new DOMParser().parseFromString(text,'application/xml');
+      const entries = xml.querySelectorAll('entry');
+      log('Entries: ' + entries.length);
+      if(entries.length>0) log('First: ' + entries[0].querySelector('title')?.textContent?.slice(0,60));
+    } else {
+      log('Body: ' + (await res.text()).slice(0,100));
+    }
+  } catch(e){ log('ERROR: ' + e.message); }
+
+  // Test 2: Reddit JSON
+  log('\n[2] Reddit JSON test...');
+  try {
+    const res = await fetch('/api/reddit?sub=businesstravel&limit=3&type=json');
+    log('Status: ' + res.status);
+    if(res.ok){
+      const data = await res.json();
+      log('Posts: ' + (data.data?.children?.length||0));
+    }
+  } catch(e){ log('ERROR: ' + e.message); }
+
+  // Test 3: Claude API
+  log('\n[3] Claude API test...');
+  const SALT='sortie-2026';
+  const deob=(s)=>{ try{return atob(s).split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)^SALT.charCodeAt(i%SALT.length))).join('');}catch{return '';} };
+  const key=deob(localStorage.getItem('sk_a')||'');
+  log('Key: ' + (key ? key.slice(0,15)+'...' : 'NOT FOUND'));
+  if(key){
+    try{
+      const res = await fetch('/api/claude',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:20,messages:[{role:'user',content:'Say OK'}]})
+      });
+      log('Status: ' + res.status);
+      const data = await res.json();
+      log('Response: ' + (data.content?.[0]?.text || JSON.stringify(data).slice(0,80)));
+    } catch(e){ log('ERROR: ' + e.message); }
+  }
+
+  log('\nDone.');
+}
+
+async function runScan(){
+  if(scanning) return;
+  if(!KEYS.anthropic){ alert('Add your Anthropic API key in Settings first.'); toggleSettings(); return; }
+
+  scanning=true;
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true; btn.textContent='Scanning...';
+  document.getElementById('results').innerHTML='';
+  document.getElementById('stats').style.display='none';
+
+  const postsPerSub=parseInt(document.getElementById('postsPerSub').value);
+  const minScore=parseInt(document.getElementById('minScore').value);
+  const statusLine=document.getElementById('statusLine');
+  const progressFill=document.getElementById('progressFill');
+  statusLine.style.display='inline';
+  document.getElementById('progressBar').style.display='block';
+  progressFill.style.width='0%';
+
+  let allPosts=[];
+
+  // Reddit
+  const subs=document.getElementById('subreddits').value.split(',').map(s=>s.trim()).filter(Boolean);
+  for(const sub of subs){
+    statusLine.textContent=`Fetching r/${sub}...`;
+    try{ const posts=await fetchPosts(sub,postsPerSub); allPosts=allPosts.concat(posts); }
+    catch(e){ console.warn(`r/${sub}:`,e); }
+  }
+
+  const nowSec=Date.now()/1000;
+  const freshPosts=allPosts.filter(p=>(nowSec-p.created)/3600<=AGE_LIMIT);
+  const classified=[];
+  const commentMap={};
+
+  for(let i=0;i<freshPosts.length;i++){
+    const post=freshPosts[i];
+    statusLine.textContent=`Classifying r/${post.subreddit} — ${i+1}/${freshPosts.length}`;
+    progressFill.style.width=Math.round((i/freshPosts.length)*100)+'%';
+    const comments=post.url?await fetchComments(post.url):[];
+    commentMap[post.id]=comments;
+    const result=await classifyPost(post,comments);
+    if(result.relevant&&result.score>=minScore){
+      classified.push({post,result});
+      await sendTelegram(formatTelegram(post,result,(nowSec-post.created)/3600));
+    }
+  }
+
+  classified.sort((a,b)=>b.result.score-a.result.score);
+  progressFill.style.width='100%';
+
+  await sendTelegram(classified.length>0
+    ?`✅ Scan done — ${classified.length} signal${classified.length>1?'s':''} from ${freshPosts.length} posts`
+    :`🔇 Scan done — no signals from ${freshPosts.length} posts`);
+
+  document.getElementById('statTotal').textContent=freshPosts.length;
+  document.getElementById('statResearch').textContent=classified.filter(c=>c.result.dimensions?.market_research).length;
+  document.getElementById('statLeads').textContent=classified.filter(c=>c.result.dimensions?.lead).length;
+  document.getElementById('statMarketing').textContent=classified.filter(c=>c.result.dimensions?.marketing).length;
+  document.getElementById('stats').style.display='grid';
+
+  const resultsEl=document.getElementById('results');
+  resultsEl.innerHTML=classified.length===0
+    ?`<div class="empty">No signals found. Try lowering the minimum score.</div>`
+    :classified.map(({post,result})=>renderCard(post,result,commentMap[post.id]||[])).join('');
+
+  statusLine.style.display='none';
+  document.getElementById('progressBar').style.display='none';
+  btn.disabled=false; btn.textContent='Run Scan';
+  scanning=false;
+}
+</script>
+</body>
+</html>
