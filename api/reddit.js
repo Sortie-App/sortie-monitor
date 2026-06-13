@@ -3,7 +3,7 @@ const https = require('https');
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
-      headers: {  'User-Agent': 'Mozilla/5.0 ('User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
     }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
@@ -20,8 +20,8 @@ module.exports = async function handler(req, res) {
   const { sub, type = 'rss', limit = 8 } = req.query;
   if (!sub) return res.status(400).json({ error: 'Missing sub' });
   const url = type === 'json'
-    ? `https://www.reddit.com/r/${sub}/new.json?limit=${limit}&raw_json=1`
-    : `https://www.reddit.com/r/${sub}/new/.rss?limit=${limit}`;
+    ? 'https://www.reddit.com/r/' + sub + '/new.json?limit=' + limit + '&raw_json=1'
+    : 'https://www.reddit.com/r/' + sub + '/new/.rss?limit=' + limit;
   try {
     const response = await httpsGet(url);
     res.setHeader('Content-Type', response.headers['content-type'] || 'text/plain');
