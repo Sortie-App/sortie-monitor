@@ -306,7 +306,7 @@ async function fetchComments(postUrl) {
   // This is a separate call and may be blocked; if so, we proceed without comments
   try {
     const path = new URL(postUrl).pathname;
-    const res = await fetch(`/api/comments?path=${encodeURIComponent(path)}`);
+    const res = await fetch(`https://www.reddit.com${path}.json?limit=5`);
     if (!res.ok) return [];
     const data = await res.json();
     return (data[1]?.data?.children||[])
@@ -317,7 +317,7 @@ async function fetchComments(postUrl) {
 
 async function fetchPosts(sub, limit) {
   // Use RSS feed — no API key required, works from browser IP
-  const res = await fetch(`/api/reddit?sub=${encodeURIComponent(sub)}&limit=${limit}&type=rss`);
+  const res = await fetch(`https://www.reddit.com/r/${sub}/new/.rss?limit=${limit}`);
   if (!res.ok) throw new Error(res.status);
   const text = await res.text();
   const parser = new DOMParser();
@@ -451,7 +451,7 @@ async function runDebug(){
   // Test 1: Reddit RSS
   log('\n[1] Reddit RSS test...');
   try {
-    const res = await fetch('/api/reddit?sub=businesstravel&limit=3&type=rss');
+    const res = await fetch('https://www.reddit.com/r/businesstravel/new/.rss?limit=3');
     log('Status: ' + res.status + ' ' + res.statusText);
     if(res.ok){
       const text = await res.text();
@@ -468,7 +468,7 @@ async function runDebug(){
   // Test 2: Reddit JSON
   log('\n[2] Reddit JSON test...');
   try {
-    const res = await fetch('/api/reddit?sub=businesstravel&limit=3&type=json');
+    const res = await fetch('https://www.reddit.com/r/businesstravel/new.json?limit=3');
     log('Status: ' + res.status);
     if(res.ok){
       const data = await res.json();
